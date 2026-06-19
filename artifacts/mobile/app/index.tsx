@@ -454,13 +454,20 @@ export default function TTSScreen() {
                 ref={inputRef}
                 style={s.textInput}
                 value={text}
-                onChangeText={setText}
+                onChangeText={(newText) => {
+                  if (newText.endsWith("\n")) {
+                    const trimmed = newText.slice(0, -1);
+                    setText(trimmed);
+                    if (trimmed.trim()) speak(trimmed);
+                    setTimeout(() => inputRef.current?.focus(), 150);
+                    return;
+                  }
+                  setText(newText);
+                }}
                 placeholder="Type here or connect a Bluetooth keyboard..."
                 placeholderTextColor={colors.mutedForeground}
                 multiline
-                onSubmitEditing={handleSubmitEditing}
                 blurOnSubmit={false}
-                returnKeyType="done"
                 autoFocus
                 autoCorrect={false}
                 autoCapitalize="sentences"
