@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
+import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -23,6 +24,13 @@ import { useColors } from "@/hooks/useColors";
 
 const HISTORY_KEY = "tts_history_v1";
 const SETTINGS_KEY = "tts_settings_v1";
+const SAVED_PHRASES_KEY = "tts_saved_phrases_v1";
+
+interface SavedPhrase {
+  id: string;
+  text: string;
+  savedAt: string;
+}
 
 const LANGUAGES = [
   { code: "en-US", label: "English (US)", flag: "🇺🇸" },
@@ -62,15 +70,21 @@ export default function TTSScreen() {
   const [language, setLanguage] = useState("en-US");
   const [showLangPicker, setShowLangPicker] = useState(false);
 
+  // ── Saved Phrases (ADDITIVE) ──────────────────────────────────
+  const [savedPhrases, setSavedPhrases] = useState<SavedPhrase[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   useEffect(() => {
     (async () => {
       try {
-        const [savedSettings, savedHistory] = await Promise.all([
+        const [savedSettings, savedHistory, savedPhrasesRaw] = await Promise.all([
           AsyncStorage.getItem(SETTINGS_KEY),
           AsyncStorage.getItem(HISTORY_KEY),
+          AsyncStorage.getItem(SAVED_PHRASES_KEY),
         ]);
         if (savedSettings) {
           const s = JSON.parse(savedSettings);
@@ -80,6 +94,9 @@ export default function TTSScreen() {
         }
         if (savedHistory) {
           setHistory(JSON.parse(savedHistory));
+        }
+        if (savedPhrasesRaw) {
+          setSavedPhrases(JSON.parse(savedPhrasesRaw));
         }
       } catch {}
     })();
@@ -178,6 +195,40 @@ export default function TTSScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  // ── Save current phrase (ADDITIVE) ───────────────────────────
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  const saveCurrentPhrase = useCallback(async () => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      showToast("Type something first to save");
+      return;
+    }
+    const isDuplicate = savedPhrases.some(
+      (p) => p.text.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDuplicate) {
+      showToast("This phrase is already saved");
+      return;
+    }
+    const entry: SavedPhrase = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+      text: trimmed,
+      savedAt: new Date().toISOString(),
+    };
+    const updated = [entry, ...savedPhrases];
+    setSavedPhrases(updated);
+    try {
+      await AsyncStorage.setItem(SAVED_PHRASES_KEY, JSON.stringify(updated));
+    } catch {}
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast("Phrase saved! ✅");
+  }, [text, savedPhrases, showToast]);
+
   const switchPanel = (panel: Panel) => {
     if (activePanel === panel) {
       setActivePanel("main");
@@ -202,6 +253,13 @@ export default function TTSScreen() {
           <Text style={s.appTitle}>SpeakIt</Text>
         </View>
         <View style={s.headerRight}>
+          {/* My Phrases button (ADDITIVE) */}
+          <TouchableOpacity
+            style={s.headerBtn}
+            onPress={() => router.push("/saved-phrases")}
+          >
+            <Feather name="bookmark" size={20} color="#4ECDC4" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={s.headerBtn}
             onPress={() => switchPanel("history")}
@@ -538,7 +596,34 @@ export default function TTSScreen() {
                 ? "Speaking…"
                 : "Press Enter on keyboard or tap Speak"}
             </Text>
+
+            {/* ── Save button row (ADDITIVE) ─────────────────── */}
+            <View style={s.saveRow}>
+              <TouchableOpacity
+                style={s.saveBtn}
+                onPress={saveCurrentPhrase}
+                activeOpacity={0.8}
+              >
+                <Feather name="bookmark" size={20} color="#FFFFFF" />
+                <Text style={s.saveBtnText}>Save phrase</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.myPhrasesBtn}
+                onPress={() => router.push("/saved-phrases")}
+                activeOpacity={0.8}
+              >
+                <Feather name="list" size={18} color="#4ECDC4" />
+              </TouchableOpacity>
+            </View>
           </View>
+
+          {/* Toast overlay (ADDITIVE) */}
+          {toast && (
+            <View style={s.toast} pointerEvents="none">
+              <Feather name="check-circle" size={14} color="#FFFFFF" />
+              <Text style={s.toastText}>{toast}</Text>
+            </View>
+          )}
         </KeyboardAvoidingView>
       )}
     </View>
@@ -901,6 +986,59 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
       fontSize: 12,
       color: colors.mutedForeground,
       fontFamily: "Inter_400Regular",
+      marginBottom: 14,
+    },
+
+    // ── Saved phrases additions ───────────────────────────────
+    saveRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 4,
+    },
+    saveBtn: {
+      flex: 1,
+      height: 48,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: "#4ECDC4",
+      borderRadius: 12,
+    },
+    saveBtnText: {
+      fontSize: 15,
+      fontWeight: "600" as const,
+      color: "#FFFFFF",
+      fontFamily: "Inter_600SemiBold",
+    },
+    myPhrasesBtn: {
+      width: 48,
+      height: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#4ECDC4",
+    },
+    toast: {
+      position: "absolute",
+      bottom: bottomPad + 20,
+      alignSelf: "center",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#1E2338",
+      borderRadius: 100,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    toastText: {
+      fontSize: 14,
+      color: colors.foreground,
+      fontFamily: "Inter_500Medium",
     },
   });
 }
