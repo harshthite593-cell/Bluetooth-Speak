@@ -5,9 +5,11 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -15,6 +17,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +25,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WaveformAnimation from "@/components/WaveformAnimation";
 import { useColors } from "@/hooks/useColors";
 import { insertLog } from "@/utils/analytics";
+import {
+  applyPrediction,
+  getPredictions,
+  invalidateTrieCache,
+  recordSpokenText,
+} from "@/utils/prediction";
 
 const HISTORY_KEY = "tts_history_v1";
 const SETTINGS_KEY = "tts_settings_v1";
@@ -79,6 +88,18 @@ export default function TTSScreen() {
   // ── Triple-press Enter detection for Emergency Mode (ADDITIVE) ─
   const enterTimestamps = useRef<number[]>([]);
 
+  // ── AI Predictive Text (ADDITIVE) ────────────────────────────
+  const [predictions, setPredictions] = useState<string[]>([]);
+  const predictionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── AI Refine Bottom Sheet (ADDITIVE) ─────────────────────────
+  const [refineVisible, setRefineVisible] = useState(false);
+  const [refineLoading, setRefineLoading] = useState(false);
+  const [refineVariants, setRefineVariants] = useState<
+    Array<{ label: string; text: string }>
+  >([]);
+  const [refineError, setRefineError] = useState<string | null>(null);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -121,6 +142,19 @@ export default function TTSScreen() {
     []
   );
 
+  // ── Update prediction chips as user types (ADDITIVE) ─────────
+  const updatePredictions = useCallback((newText: string) => {
+    if (predictionTimer.current) clearTimeout(predictionTimer.current);
+    predictionTimer.current = setTimeout(async () => {
+      try {
+        const preds = await getPredictions(newText);
+        setPredictions(preds);
+      } catch {
+        setPredictions([]);
+      }
+    }, 120);
+  }, []);
+
   const speak = useCallback(
     async (textToSpeak: string) => {
       const trimmed = textToSpeak.trim();
@@ -146,6 +180,9 @@ export default function TTSScreen() {
 
       // ── Analytics logging (ADDITIVE) ─────────────────────────
       insertLog(trimmed, language, rate);
+
+      // ── Record for prediction model (ADDITIVE) ────────────────
+      recordSpokenText(trimmed).then(() => invalidateTrieCache());
 
       Speech.speak(trimmed, {
         rate,
@@ -208,6 +245,41 @@ export default function TTSScreen() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+
+  // ── AI refine via API server (ADDITIVE) ───────────────────────
+  const openRefine = useCallback(async () => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      showToast("Type something to refine");
+      return;
+    }
+    setRefineVariants([]);
+    setRefineError(null);
+    setRefineLoading(true);
+    setRefineVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const baseUrl = process.env["EXPO_PUBLIC_API_BASE_URL"] ?? "/api";
+      const resp = await fetch(`${baseUrl}/ai/refine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Unknown error" }));
+        setRefineError((err as { error?: string }).error ?? "Request failed");
+      } else {
+        const data = (await resp.json()) as {
+          variants: Array<{ label: string; text: string }>;
+        };
+        setRefineVariants(data.variants);
+      }
+    } catch {
+      setRefineError("Could not connect to AI service");
+    } finally {
+      setRefineLoading(false);
+    }
+  }, [text, showToast]);
 
   const saveCurrentPhrase = useCallback(async () => {
     const trimmed = text.trim();
@@ -549,11 +621,13 @@ export default function TTSScreen() {
                     // ── Existing TTS logic (UNCHANGED) ──────────
                     const trimmed = newText.slice(0, -1);
                     setText(trimmed);
+                    setPredictions([]);
                     if (trimmed.trim()) speak(trimmed);
                     setTimeout(() => inputRef.current?.focus(), 150);
                     return;
                   }
                   setText(newText);
+                  updatePredictions(newText);
                 }}
                 placeholder="Type here or connect a Bluetooth keyboard..."
                 placeholderTextColor={colors.mutedForeground}
@@ -582,22 +656,60 @@ export default function TTSScreen() {
               )}
             </View>
 
-            {/* Char count + current settings */}
+            {/* ── Prediction chips (ADDITIVE) ──────────────────── */}
+            {predictions.length > 0 && !isSpeaking && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={s.predScroll}
+                contentContainerStyle={s.predContent}
+                keyboardShouldPersistTaps="always"
+              >
+                {predictions.map((pred) => (
+                  <TouchableOpacity
+                    key={pred}
+                    style={s.predChip}
+                    onPress={async () => {
+                      const newText = await applyPrediction(text, pred);
+                      setText(newText);
+                      updatePredictions(newText);
+                      inputRef.current?.focus();
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={s.predChipText}>{pred}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Char count + current settings + ✨ refine */}
             <View style={s.metaRow}>
               <Text style={s.charCount}>{text.length} chars</Text>
-              <TouchableOpacity
-                style={s.settingsPill}
-                onPress={() => setActivePanel("settings")}
-              >
-                <Feather
-                  name="sliders"
-                  size={11}
-                  color={colors.mutedForeground}
-                />
-                <Text style={s.settingsPillText}>
-                  {rate.toFixed(2)}× · {pitch.toFixed(2)} · {currentLang?.flag}
-                </Text>
-              </TouchableOpacity>
+              <View style={s.metaRight}>
+                {/* ── AI Refine button (ADDITIVE) ──────────────── */}
+                <TouchableOpacity
+                  style={s.refineBtn}
+                  onPress={openRefine}
+                  activeOpacity={0.75}
+                >
+                  <Text style={s.refineBtnText}>✨ Refine</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.settingsPill}
+                  onPress={() => setActivePanel("settings")}
+                >
+                  <Feather
+                    name="sliders"
+                    size={11}
+                    color={colors.mutedForeground}
+                  />
+                  <Text style={s.settingsPillText}>
+                    {rate.toFixed(2)}× · {pitch.toFixed(2)} · {currentLang?.flag}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Waveform */}
@@ -659,6 +771,66 @@ export default function TTSScreen() {
           )}
         </KeyboardAvoidingView>
       )}
+
+      {/* ── AI Refine Bottom Sheet Modal (ADDITIVE) ────────────── */}
+      <Modal
+        visible={refineVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRefineVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setRefineVisible(false)}>
+          <View style={s.modalOverlay} />
+        </TouchableWithoutFeedback>
+        <View style={[s.refineSheet, { paddingBottom: bottomPad + 16 }]}>
+          <View style={s.refineHandle} />
+          <View style={s.refineHeader}>
+            <Text style={s.refineTitle}>✨ AI Sentence Refiner</Text>
+            <TouchableOpacity onPress={() => setRefineVisible(false)}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+          <Text style={s.refineOrigLabel}>Original</Text>
+          <Text style={s.refineOrigText} numberOfLines={2}>
+            {text.trim()}
+          </Text>
+
+          {refineLoading && (
+            <View style={s.refineLoadingRow}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={s.refineLoadingText}>Asking AI…</Text>
+            </View>
+          )}
+
+          {refineError && (
+            <View style={s.refineErrorBox}>
+              <Feather name="alert-circle" size={16} color="#FF6B6B" />
+              <Text style={s.refineErrorText}>{refineError}</Text>
+            </View>
+          )}
+
+          {refineVariants.map((v) => (
+            <TouchableOpacity
+              key={v.label}
+              style={s.refineVariant}
+              activeOpacity={0.8}
+              onPress={() => {
+                setText(v.text);
+                updatePredictions(v.text);
+                setRefineVisible(false);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                inputRef.current?.focus();
+              }}
+            >
+              <View style={s.refineVariantHeader}>
+                <Text style={s.refineVariantLabel}>{v.label}</Text>
+                <Feather name="corner-down-left" size={13} color={colors.primary} />
+              </View>
+              <Text style={s.refineVariantText}>{v.text}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -959,11 +1131,55 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
       top: 12,
       right: 12,
     },
+    // ── Prediction chips (ADDITIVE) ──────────────────────────────
+    predScroll: {
+      marginBottom: 8,
+      flexGrow: 0,
+    },
+    predContent: {
+      gap: 6,
+      paddingRight: 4,
+    },
+    predChip: {
+      backgroundColor: "#1A2140",
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 100,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    predChipText: {
+      fontSize: 13,
+      color: colors.primary,
+      fontFamily: "Inter_500Medium",
+    },
+
     metaRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: 16,
+    },
+    metaRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    // ── Refine button (ADDITIVE) ──────────────────────────────────
+    refineBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "#1A1040",
+      borderWidth: 1,
+      borderColor: "#7C3AED",
+      borderRadius: 100,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    refineBtnText: {
+      fontSize: 11,
+      color: "#A78BFA",
+      fontFamily: "Inter_500Medium",
     },
     charCount: {
       fontSize: 12,
@@ -1072,6 +1288,113 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
       fontSize: 14,
       color: colors.foreground,
       fontFamily: "Inter_500Medium",
+    },
+
+    // ── AI Refine Modal (ADDITIVE) ────────────────────────────────
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.55)",
+    },
+    refineSheet: {
+      backgroundColor: "#13172A",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderColor: "#2A2F4A",
+    },
+    refineHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: "#2A2F4A",
+      alignSelf: "center",
+      marginBottom: 16,
+    },
+    refineHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 14,
+    },
+    refineTitle: {
+      fontSize: 17,
+      fontWeight: "700" as const,
+      color: colors.foreground,
+      fontFamily: "Inter_700Bold",
+    },
+    refineOrigLabel: {
+      fontSize: 11,
+      color: colors.mutedForeground,
+      fontFamily: "Inter_500Medium",
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+      marginBottom: 4,
+    },
+    refineOrigText: {
+      fontSize: 14,
+      color: colors.mutedForeground,
+      fontFamily: "Inter_400Regular",
+      fontStyle: "italic",
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    refineLoadingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 20,
+      justifyContent: "center",
+    },
+    refineLoadingText: {
+      fontSize: 14,
+      color: colors.mutedForeground,
+      fontFamily: "Inter_400Regular",
+    },
+    refineErrorBox: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#2A1020",
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: "#FF6B6B44",
+    },
+    refineErrorText: {
+      fontSize: 13,
+      color: "#FF6B6B",
+      fontFamily: "Inter_400Regular",
+      flex: 1,
+    },
+    refineVariant: {
+      backgroundColor: "#1A1E35",
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: "#2A2F4A",
+    },
+    refineVariantHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6,
+    },
+    refineVariantLabel: {
+      fontSize: 11,
+      color: colors.primary,
+      fontFamily: "Inter_600SemiBold",
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+    },
+    refineVariantText: {
+      fontSize: 15,
+      color: colors.foreground,
+      fontFamily: "Inter_400Regular",
+      lineHeight: 22,
     },
   });
 }
