@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import WaveformAnimation from "@/components/WaveformAnimation";
 import { useColors } from "@/hooks/useColors";
+import { insertLog } from "@/utils/analytics";
 
 const HISTORY_KEY = "tts_history_v1";
 const SETTINGS_KEY = "tts_settings_v1";
@@ -74,6 +75,9 @@ export default function TTSScreen() {
   const [savedPhrases, setSavedPhrases] = useState<SavedPhrase[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Triple-press Enter detection for Emergency Mode (ADDITIVE) ─
+  const enterTimestamps = useRef<number[]>([]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -139,6 +143,9 @@ export default function TTSScreen() {
       try {
         await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
       } catch {}
+
+      // ── Analytics logging (ADDITIVE) ─────────────────────────
+      insertLog(trimmed, language, rate);
 
       Speech.speak(trimmed, {
         rate,
@@ -253,6 +260,20 @@ export default function TTSScreen() {
           <Text style={s.appTitle}>SpeakIt</Text>
         </View>
         <View style={s.headerRight}>
+          {/* Analytics button (ADDITIVE) */}
+          <TouchableOpacity
+            style={s.headerBtn}
+            onPress={() => router.push("/analytics")}
+          >
+            <Feather name="bar-chart-2" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          {/* Emergency button (ADDITIVE) */}
+          <TouchableOpacity
+            style={s.headerBtn}
+            onPress={() => router.push("/emergency")}
+          >
+            <Feather name="alert-triangle" size={20} color="#FF6B6B" />
+          </TouchableOpacity>
           {/* My Phrases button (ADDITIVE) */}
           <TouchableOpacity
             style={s.headerBtn}
@@ -514,6 +535,18 @@ export default function TTSScreen() {
                 value={text}
                 onChangeText={(newText) => {
                   if (newText.endsWith("\n")) {
+                    // ── Triple-press → Emergency Mode (ADDITIVE) ─
+                    const now = Date.now();
+                    enterTimestamps.current = [
+                      ...enterTimestamps.current,
+                      now,
+                    ].filter((t) => now - t < 1500);
+                    if (enterTimestamps.current.length >= 3) {
+                      enterTimestamps.current = [];
+                      router.push("/emergency");
+                      return;
+                    }
+                    // ── Existing TTS logic (UNCHANGED) ──────────
                     const trimmed = newText.slice(0, -1);
                     setText(trimmed);
                     if (trimmed.trim()) speak(trimmed);

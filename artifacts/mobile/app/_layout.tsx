@@ -24,6 +24,9 @@ function RootLayoutNav() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="saved-phrases" options={{ headerShown: false }} />
+      <Stack.Screen name="analytics" options={{ headerShown: false }} />
+      <Stack.Screen name="emergency" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="emergency-contacts" options={{ headerShown: false }} />
     </Stack>
   );
 }
