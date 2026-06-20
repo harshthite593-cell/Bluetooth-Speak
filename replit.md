@@ -1,6 +1,6 @@
-# [Project name]
+# Type Talk
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A mobile TTS app that gives speech-impaired users a voice — type or use a Bluetooth keyboard, press Enter, and the app speaks your words instantly.
 
 ## Run & Operate
 

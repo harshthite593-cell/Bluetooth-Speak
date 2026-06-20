@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -354,8 +355,12 @@ export default function TTSScreen() {
       {/* ── Header ── */}
       <View style={s.header}>
         <View style={s.headerLeft}>
-          <View style={s.btDot} />
-          <Text style={s.appTitle}>SpeakIt</Text>
+          <Image
+            source={require("../assets/images/logo.png")}
+            style={s.logoImg}
+            resizeMode="contain"
+          />
+          <Text style={s.appTitle}>Type Talk</Text>
         </View>
         <View style={s.headerRight}>
           {/* Analytics button (ADDITIVE) */}
@@ -908,11 +913,10 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
       alignItems: "center",
       gap: 8,
     },
-    btDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: "#4F8EF7",
+    logoImg: {
+      width: 32,
+      height: 32,
+      borderRadius: 6,
     },
     appTitle: {
       fontSize: 20,

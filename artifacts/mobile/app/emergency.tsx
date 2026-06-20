@@ -141,7 +141,7 @@ export default function EmergencyScreen() {
       const phrase = lastPhrase ?? "Emergency alert";
       const timestamp = new Date().toLocaleString();
       const message =
-        `🚨 EMERGENCY ALERT via SpeakIt App.\n` +
+        `🚨 EMERGENCY ALERT via Type Talk App.\n` +
         `Message: "${phrase}"\n` +
         (locationText.startsWith("http")
           ? `Location: ${locationText}\n`
