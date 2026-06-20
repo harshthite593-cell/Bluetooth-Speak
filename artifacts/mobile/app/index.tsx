@@ -354,14 +354,23 @@ export default function TTSScreen() {
 
       {/* ── Header ── */}
       <View style={s.header}>
-        <View style={s.headerLeft}>
+        <TouchableOpacity
+          style={s.headerLeft}
+          onPress={() => {
+            setActivePanel("main");
+            setText("");
+            setPredictions([]);
+            setTimeout(() => inputRef.current?.focus(), 150);
+          }}
+          activeOpacity={0.75}
+        >
           <Image
             source={require("../assets/images/logo.png")}
             style={s.logoImg}
             resizeMode="contain"
           />
           <Text style={s.appTitle}>Type Talk</Text>
-        </View>
+        </TouchableOpacity>
         <View style={s.headerRight}>
           {/* Analytics button (ADDITIVE) */}
           <TouchableOpacity
@@ -653,6 +662,12 @@ export default function TTSScreen() {
                     // Always clear the input and predictions on Enter
                     setText("");
                     setPredictions([]);
+                    // ── Reserved nav commands (always take priority) ─
+                    const cmd = trimmed.trim().toLowerCase();
+                    if (cmd === "p") { router.push("/analytics"); return; }
+                    if (cmd === "b") { router.back(); return; }
+                    if (cmd === "e") { router.push("/emergency"); return; }
+                    if (cmd === "h") { setTimeout(() => inputRef.current?.focus(), 150); return; }
                     // ── Shortcut resolution — use ref, never stale ─
                     const resolved = resolveShortcut(
                       trimmed,

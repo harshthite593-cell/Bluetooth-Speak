@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import GlobalKeyShortcuts from "@/components/GlobalKeyShortcuts";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
@@ -257,6 +258,7 @@ export default function AnalyticsScreen() {
           </View>
         </Animated.ScrollView>
       )}
+      <GlobalKeyShortcuts />
     </View>
   );
 }

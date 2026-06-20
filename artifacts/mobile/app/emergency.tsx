@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import GlobalKeyShortcuts from "@/components/GlobalKeyShortcuts";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -290,6 +291,7 @@ export default function EmergencyScreen() {
 
         <View style={{ height: bottomPad + 16 }} />
       </ScrollView>
+      <GlobalKeyShortcuts />
     </View>
   );
 }

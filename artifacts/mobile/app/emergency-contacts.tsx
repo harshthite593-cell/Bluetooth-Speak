@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import GlobalKeyShortcuts from "@/components/GlobalKeyShortcuts";
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
@@ -238,6 +239,7 @@ export default function EmergencyContactsScreen() {
           <Text style={s.toastText}>{toast}</Text>
         </View>
       )}
+      <GlobalKeyShortcuts />
     </View>
   );
 }

@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
 import { router } from "expo-router";
+import GlobalKeyShortcuts from "@/components/GlobalKeyShortcuts";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -348,6 +349,7 @@ export default function SavedPhrasesScreen() {
           <Text style={s.toastText}>{toast}</Text>
         </View>
       )}
+      <GlobalKeyShortcuts />
     </View>
   );
 }
