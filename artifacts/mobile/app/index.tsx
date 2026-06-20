@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import * as Speech from "expo-speech";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -31,6 +31,11 @@ import {
   invalidateTrieCache,
   recordSpokenText,
 } from "@/utils/prediction";
+import {
+  type Shortcut,
+  loadShortcuts,
+  resolveShortcut,
+} from "@/utils/shortcuts";
 
 const HISTORY_KEY = "tts_history_v1";
 const SETTINGS_KEY = "tts_settings_v1";
@@ -87,6 +92,20 @@ export default function TTSScreen() {
 
   // ── Triple-press Enter detection for Emergency Mode (ADDITIVE) ─
   const enterTimestamps = useRef<number[]>([]);
+
+  // ── Keyboard Shortcuts (ADDITIVE) ────────────────────────────
+  const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
+
+  useEffect(() => {
+    loadShortcuts().then(setShortcuts);
+  }, []);
+
+  // Reload shortcuts whenever we navigate back to this screen
+  useFocusEffect(
+    useCallback(() => {
+      loadShortcuts().then(setShortcuts);
+    }, [])
+  );
 
   // ── AI Predictive Text (ADDITIVE) ────────────────────────────
   const [predictions, setPredictions] = useState<string[]>([]);
@@ -618,10 +637,18 @@ export default function TTSScreen() {
                       router.push("/emergency");
                       return;
                     }
-                    // ── Existing TTS logic (UNCHANGED) ──────────
                     const trimmed = newText.slice(0, -1);
                     setText(trimmed);
                     setPredictions([]);
+                    // ── Shortcut resolution (ADDITIVE) ───────────
+                    const resolved = resolveShortcut(trimmed, shortcuts);
+                    if (resolved) {
+                      speak(resolved);
+                      showToast(`⚡ "${trimmed.trim()}" → phrase spoken`);
+                      setTimeout(() => inputRef.current?.focus(), 150);
+                      return;
+                    }
+                    // ── Existing TTS logic (UNCHANGED) ──────────
                     if (trimmed.trim()) speak(trimmed);
                     setTimeout(() => inputRef.current?.focus(), 150);
                     return;
