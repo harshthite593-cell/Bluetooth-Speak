@@ -95,16 +95,23 @@ export default function TTSScreen() {
 
   // ── Keyboard Shortcuts (ADDITIVE) ────────────────────────────
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
+  // ref mirrors state so onChangeText closure always sees latest shortcuts
+  const shortcutsRef = useRef<Shortcut[]>([]);
+
+  const applyShortcuts = useCallback((list: Shortcut[]) => {
+    shortcutsRef.current = list;
+    setShortcuts(list);
+  }, []);
 
   useEffect(() => {
-    loadShortcuts().then(setShortcuts);
-  }, []);
+    loadShortcuts().then(applyShortcuts);
+  }, [applyShortcuts]);
 
   // Reload shortcuts whenever we navigate back to this screen
   useFocusEffect(
     useCallback(() => {
-      loadShortcuts().then(setShortcuts);
-    }, [])
+      loadShortcuts().then(applyShortcuts);
+    }, [applyShortcuts])
   );
 
   // ── AI Predictive Text (ADDITIVE) ────────────────────────────
@@ -638,17 +645,21 @@ export default function TTSScreen() {
                       return;
                     }
                     const trimmed = newText.slice(0, -1);
-                    setText(trimmed);
+                    // Always clear the input and predictions on Enter
+                    setText("");
                     setPredictions([]);
-                    // ── Shortcut resolution (ADDITIVE) ───────────
-                    const resolved = resolveShortcut(trimmed, shortcuts);
+                    // ── Shortcut resolution — use ref, never stale ─
+                    const resolved = resolveShortcut(
+                      trimmed,
+                      shortcutsRef.current
+                    );
                     if (resolved) {
                       speak(resolved);
                       showToast(`⚡ "${trimmed.trim()}" → phrase spoken`);
                       setTimeout(() => inputRef.current?.focus(), 150);
                       return;
                     }
-                    // ── Existing TTS logic (UNCHANGED) ──────────
+                    // ── Normal TTS ────────────────────────────────
                     if (trimmed.trim()) speak(trimmed);
                     setTimeout(() => inputRef.current?.focus(), 150);
                     return;
