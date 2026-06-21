@@ -24,7 +24,7 @@ const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
 export default function ProfileSetupScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, isGuest, updateProfile } = useAuth();
+  const { user, isGuest, updateProfile, skipProfile } = useAuth();
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -71,12 +71,21 @@ export default function ProfileSetupScreen() {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
+        {/* Skip button top-right */}
+        <TouchableOpacity
+          style={s.skipBtn}
+          onPress={async () => { await skipProfile(); router.replace("/"); }}
+        >
+          <Text style={s.skipText}>Skip</Text>
+          <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+        </TouchableOpacity>
+
         <View style={s.headerWrap}>
           <View style={s.iconCircle}>
             <Feather name="user" size={28} color={colors.primary} />
           </View>
           <Text style={s.title}>Tell us about yourself</Text>
-          <Text style={s.subtitle}>This helps us match you with friends who understand you</Text>
+          <Text style={s.subtitle}>Optional — helps us match you with the right friends</Text>
         </View>
 
         <View style={s.card}>
@@ -169,6 +178,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, _botto
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     scroll: { flexGrow: 1, paddingTop: topPad + 20, paddingBottom: 40, paddingHorizontal: 20 },
+    skipBtn: { flexDirection: "row", alignItems: "center", alignSelf: "flex-end", gap: 2, paddingVertical: 6, paddingHorizontal: 4, marginBottom: 8 },
+    skipText: { fontSize: 14, color: colors.mutedForeground },
     headerWrap: { alignItems: "center", marginBottom: 24 },
     iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: `${colors.primary}20`, alignItems: "center", justifyContent: "center", marginBottom: 14 },
     title: { fontSize: 22, fontWeight: "700", color: colors.foreground, textAlign: "center" },

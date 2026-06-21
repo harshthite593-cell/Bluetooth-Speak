@@ -6,6 +6,7 @@ const AUTH_USER_KEY = "typetalk_auth_user";
 const GUEST_KEY = "typetalk_is_guest";
 const PROFILE_KEY = "typetalk_profile";
 const PHOTO_KEY = "typetalk_profile_photo";
+const PROFILE_SEEN_KEY = "typetalk_profile_seen";
 
 // Build the API base URL. EXPO_PUBLIC_DOMAIN is injected by the dev script.
 const domain = process.env["EXPO_PUBLIC_DOMAIN"];
@@ -34,6 +35,7 @@ interface AuthState {
   token: string | null;
   isGuest: boolean;
   profile: UserProfile | null;
+  profileSeen: boolean;
   loading: boolean;
 }
 
@@ -42,6 +44,7 @@ interface AuthContextValue extends AuthState {
   register: (name: string, email: string, password: string) => Promise<string | null>;
   continueAsGuest: () => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<string | null>;
+  skipProfile: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -49,28 +52,30 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
-    user: null, token: null, isGuest: false, profile: null, loading: true,
+    user: null, token: null, isGuest: false, profile: null, profileSeen: false, loading: true,
   });
 
   useEffect(() => {
     (async () => {
       try {
-        const [token, userRaw, guestRaw, profileRaw] = await Promise.all([
+        const [token, userRaw, guestRaw, profileRaw, seenRaw] = await Promise.all([
           AsyncStorage.getItem(AUTH_TOKEN_KEY),
           AsyncStorage.getItem(AUTH_USER_KEY),
           AsyncStorage.getItem(GUEST_KEY),
           AsyncStorage.getItem(PROFILE_KEY),
+          AsyncStorage.getItem(PROFILE_SEEN_KEY),
         ]);
         const profile: UserProfile | null = profileRaw ? JSON.parse(profileRaw) : null;
+        const profileSeen = seenRaw === "true" || !!profile;
         if (token && userRaw) {
-          setState({ user: JSON.parse(userRaw) as AuthUser, token, isGuest: false, profile, loading: false });
+          setState({ user: JSON.parse(userRaw) as AuthUser, token, isGuest: false, profile, profileSeen, loading: false });
         } else if (guestRaw === "true") {
-          setState({ user: null, token: null, isGuest: true, profile, loading: false });
+          setState({ user: null, token: null, isGuest: true, profile, profileSeen, loading: false });
         } else {
-          setState({ user: null, token: null, isGuest: false, profile: null, loading: false });
+          setState({ user: null, token: null, isGuest: false, profile: null, profileSeen: false, loading: false });
         }
       } catch {
-        setState({ user: null, token: null, isGuest: false, profile: null, loading: false });
+        setState({ user: null, token: null, isGuest: false, profile: null, profileSeen: false, loading: false });
       }
     })();
   }, []);
@@ -124,9 +129,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, isGuest: true, loading: false }));
   }, []);
 
+  const skipProfile = useCallback(async () => {
+    await AsyncStorage.setItem(PROFILE_SEEN_KEY, "true");
+    setState(prev => ({ ...prev, profileSeen: true }));
+  }, []);
+
   const updateProfile = useCallback(async (profile: UserProfile): Promise<string | null> => {
     await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    setState(prev => ({ ...prev, profile }));
+    await AsyncStorage.setItem(PROFILE_SEEN_KEY, "true");
+    setState(prev => ({ ...prev, profile, profileSeen: true }));
     // Sync to server if authenticated
     const tokenRaw = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
     if (tokenRaw) {
@@ -149,12 +160,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.removeItem(AUTH_USER_KEY),
       AsyncStorage.removeItem(GUEST_KEY),
       AsyncStorage.removeItem(PROFILE_KEY),
+      AsyncStorage.removeItem(PROFILE_SEEN_KEY),
     ]);
-    setState({ user: null, token: null, isGuest: false, profile: null, loading: false });
+    setState({ user: null, token: null, isGuest: false, profile: null, profileSeen: false, loading: false });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, continueAsGuest, updateProfile, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, continueAsGuest, updateProfile, skipProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

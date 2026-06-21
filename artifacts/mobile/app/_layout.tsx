@@ -21,17 +21,17 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { user, isGuest, profile, loading } = useAuth();
+  const { user, isGuest, profileSeen, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
     const isLoggedIn = !!user || isGuest;
     if (!isLoggedIn) {
       router.replace("/login");
-    } else if (!profile) {
+    } else if (!profileSeen) {
       router.replace("/profile-setup");
     }
-  }, [user, isGuest, profile, loading]);
+  }, [user, isGuest, profileSeen, loading]);
 
   return (
     <Stack>
