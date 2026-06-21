@@ -163,7 +163,12 @@ export default function SavedPhrasesScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={s.title}>My Phrases</Text>
-        <View style={s.backBtn} />
+        <TouchableOpacity
+          style={s.backBtn}
+          onPress={() => router.replace("/")}
+        >
+          <Feather name="home" size={20} color={colors.mutedForeground} />
+        </TouchableOpacity>
       </View>
 
       {/* Tab bar */}

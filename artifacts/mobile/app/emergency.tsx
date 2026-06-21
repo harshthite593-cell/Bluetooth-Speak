@@ -210,6 +210,9 @@ export default function EmergencyScreen() {
 
       {/* Safe button */}
       <View style={[s.safeRow, { paddingTop: topPad + 8 }]}>
+        <TouchableOpacity style={s.homeBtn} onPress={() => router.replace("/")}>
+          <Feather name="home" size={16} color={WHITE} />
+        </TouchableOpacity>
         <TouchableOpacity style={s.safeBtn} onPress={confirmSafe}>
           <Text style={s.safeBtnText}>I'm Safe Now</Text>
         </TouchableOpacity>
@@ -323,6 +326,15 @@ function makeStyles(topPad: number, bottomPad: number) {
       fontFamily: "Inter_500Medium",
     },
     contactsBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    homeBtn: {
       width: 36,
       height: 36,
       borderRadius: 18,

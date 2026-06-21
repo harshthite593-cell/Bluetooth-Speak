@@ -92,9 +92,14 @@ export default function AnalyticsScreen() {
 
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 4 }}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={22} color={colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/")}>
+            <Feather name="home" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
         <Text style={s.headerTitle}>My Progress</Text>
         <TouchableOpacity
           style={s.backBtn}

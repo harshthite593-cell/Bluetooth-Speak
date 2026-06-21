@@ -24,6 +24,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import WaveformAnimation from "@/components/WaveformAnimation";
+import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { insertLog } from "@/utils/analytics";
 import {
@@ -73,6 +74,7 @@ type Panel = "main" | "settings" | "history";
 
 export default function TTSScreen() {
   const colors = useColors();
+  const { logout } = useAuth();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
@@ -420,6 +422,16 @@ export default function TTSScreen() {
                   : colors.mutedForeground
               }
             />
+          </TouchableOpacity>
+          {/* Logout button */}
+          <TouchableOpacity
+            style={s.headerBtn}
+            onPress={async () => {
+              await logout();
+              router.replace("/login");
+            }}
+          >
+            <Feather name="log-out" size={20} color={colors.mutedForeground} />
           </TouchableOpacity>
         </View>
       </View>
