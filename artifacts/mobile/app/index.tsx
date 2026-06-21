@@ -665,6 +665,7 @@ export default function TTSScreen() {
                     // ── Reserved nav commands (always take priority) ─
                     const cmd = trimmed.trim().toLowerCase();
                     if (cmd === "p") { router.push("/analytics"); return; }
+                    if (cmd === "s") { router.push("/saved-phrases"); return; }
                     if (cmd === "b") { router.back(); return; }
                     if (cmd === "e") { router.push("/emergency"); return; }
                     if (cmd === "h") { setTimeout(() => inputRef.current?.focus(), 150); return; }
