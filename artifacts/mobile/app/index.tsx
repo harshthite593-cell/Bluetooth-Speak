@@ -75,7 +75,7 @@ type Panel = "main" | "settings" | "history";
 
 export default function TTSScreen() {
   const colors = useColors();
-  useAuth(); // keep AuthContext active
+  const { profile, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
@@ -89,6 +89,11 @@ export default function TTSScreen() {
   const [pitch, setPitch] = useState(1.0);
   const [language, setLanguage] = useState("en-US");
   const [showLangPicker, setShowLangPicker] = useState(false);
+
+  // ── Voice profile (gender + age for smart presets) ────────────────
+  const [voiceGender, setVoiceGender] = useState(profile?.gender ?? "");
+  const [voiceAge, setVoiceAge] = useState(profile?.age ? String(profile.age) : "");
+  const [presetApplied, setPresetApplied] = useState(false);
 
   // ── Saved Phrases (ADDITIVE) ──────────────────────────────────
   const [savedPhrases, setSavedPhrases] = useState<SavedPhrase[]>([]);
@@ -260,6 +265,49 @@ export default function TTSScreen() {
     setLanguage(code);
     setShowLangPicker(false);
     persistSettings(rate, pitch, code);
+  };
+
+  // ── Voice preset based on gender + age ────────────────────────────
+  const computeVoicePreset = (gender: string, age: number): { rate: number; pitch: number; label: string } => {
+    const g = gender.toLowerCase();
+    const isFemale = g === "female";
+    const isMale = g === "male";
+
+    let r = 1.00, p = 1.00;
+    if (isFemale) {
+      if (age < 20)       { p = 1.25; r = 1.10; }
+      else if (age < 40)  { p = 1.15; r = 1.00; }
+      else if (age < 60)  { p = 1.05; r = 0.90; }
+      else                { p = 1.00; r = 0.80; }
+    } else if (isMale) {
+      if (age < 20)       { p = 0.90; r = 1.10; }
+      else if (age < 40)  { p = 0.85; r = 1.00; }
+      else if (age < 60)  { p = 0.80; r = 0.90; }
+      else                { p = 0.75; r = 0.80; }
+    } else {
+      if (age < 30)       { p = 1.05; r = 1.00; }
+      else if (age < 50)  { p = 1.00; r = 0.95; }
+      else                { p = 0.95; r = 0.85; }
+    }
+
+    const ageLabel = age < 20 ? "Teen" : age < 40 ? "Young adult" : age < 60 ? "Adult" : "Senior";
+    const genderLabel = isMale ? "Male" : isFemale ? "Female" : "Neutral";
+    return { rate: r, pitch: p, label: `${genderLabel} · ${ageLabel}` };
+  };
+
+  const applyVoicePreset = async () => {
+    const ageNum = parseInt(voiceAge, 10);
+    if (!voiceGender || isNaN(ageNum)) return;
+    const preset = computeVoicePreset(voiceGender, ageNum);
+    setRate(preset.rate);
+    setPitch(preset.pitch);
+    persistSettings(preset.rate, preset.pitch, language);
+    setPresetApplied(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Save to profile if updateProfile available
+    if (profile) {
+      await updateProfile({ ...profile, gender: voiceGender, age: ageNum });
+    }
   };
 
   const clearHistory = async () => {
@@ -460,6 +508,68 @@ export default function TTSScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={s.panelTitle}>Voice Settings</Text>
+
+          {/* ── Smart Voice Profile ── */}
+          <View style={s.settingCard}>
+            <View style={s.settingLabelRow}>
+              <Feather name="user" size={15} color={colors.primary} />
+              <Text style={s.settingLabel}>My Voice Profile</Text>
+            </View>
+            <Text style={s.voiceProfileHint}>
+              Tell us about yourself so we can suggest the best voice settings for you.
+            </Text>
+
+            {/* Gender selector */}
+            <Text style={s.voiceFieldLabel}>Gender</Text>
+            <View style={s.voiceGenderRow}>
+              {["Male", "Female", "Non-binary"].map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={[s.voiceGenderPill, voiceGender === g && s.voiceGenderPillActive]}
+                  onPress={() => { setVoiceGender(g); setPresetApplied(false); Haptics.selectionAsync(); }}
+                >
+                  <Text style={[s.voiceGenderText, voiceGender === g && s.voiceGenderTextActive]}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Age input */}
+            <Text style={s.voiceFieldLabel}>Age</Text>
+            <View style={s.voiceAgeRow}>
+              <TextInput
+                style={s.voiceAgeInput}
+                value={voiceAge}
+                onChangeText={(v) => { setVoiceAge(v.replace(/[^0-9]/g, "")); setPresetApplied(false); }}
+                placeholder="e.g. 28"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numeric"
+                maxLength={3}
+              />
+              <Text style={s.voiceAgeUnit}>years old</Text>
+            </View>
+
+            {/* Match My Voice button */}
+            {voiceGender && voiceAge && parseInt(voiceAge, 10) > 0 ? (
+              presetApplied ? (
+                <View style={s.presetAppliedRow}>
+                  <Feather name="check-circle" size={15} color="#4CAF50" />
+                  <Text style={s.presetAppliedText}>
+                    Voice matched — {computeVoicePreset(voiceGender, parseInt(voiceAge, 10)).label}
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity style={s.matchBtn} onPress={applyVoicePreset} activeOpacity={0.85}>
+                  <Feather name="zap" size={15} color="#000" />
+                  <Text style={s.matchBtnText}>Match My Voice</Text>
+                  <Text style={s.matchBtnSub}>
+                    → Speed {computeVoicePreset(voiceGender, parseInt(voiceAge, 10)).rate.toFixed(2)}× · Pitch {computeVoicePreset(voiceGender, parseInt(voiceAge, 10)).pitch.toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              )
+            ) : (
+              <Text style={s.voiceProfileMissing}>Select gender and age to get a personalised preset</Text>
+            )}
+          </View>
 
           {/* Speed */}
           <View style={s.settingCard}>
@@ -1115,6 +1225,23 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
       color: colors.mutedForeground,
       fontFamily: "Inter_500Medium",
     },
+
+    voiceProfileHint: { fontSize: 12, color: colors.mutedForeground, marginBottom: 12, lineHeight: 17 },
+    voiceFieldLabel: { fontSize: 11, fontWeight: "600", color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, marginTop: 4 },
+    voiceGenderRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+    voiceGenderPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.background },
+    voiceGenderPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    voiceGenderText: { fontSize: 13, color: colors.mutedForeground, fontWeight: "500" },
+    voiceGenderTextActive: { color: "#000", fontWeight: "700" },
+    voiceAgeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+    voiceAgeInput: { backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, color: colors.foreground, width: 80, textAlign: "center" },
+    voiceAgeUnit: { fontSize: 13, color: colors.mutedForeground },
+    matchBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, flexWrap: "wrap" },
+    matchBtnText: { fontSize: 14, fontWeight: "700", color: "#000" },
+    matchBtnSub: { fontSize: 12, color: "#00000080", flex: 1 },
+    presetAppliedRow: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "#4CAF5020", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
+    presetAppliedText: { fontSize: 13, color: "#4CAF50", fontWeight: "500", flex: 1 },
+    voiceProfileMissing: { fontSize: 12, color: colors.mutedForeground, fontStyle: "italic", marginTop: 2 },
 
     // Main TTS view
     mainContent: {
