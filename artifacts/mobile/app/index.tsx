@@ -644,6 +644,7 @@ export default function TTSScreen() {
                     if (cmd === "s") { router.push("/saved-phrases"); return; }
                     if (cmd === "b") { router.back(); return; }
                     if (cmd === "e") { router.push("/emergency"); return; }
+                    if (cmd === "t") { router.push("/typing-test"); return; }
                     if (cmd === "h") { setTimeout(() => inputRef.current?.focus(), 150); return; }
                     // ── Shortcut resolution — use ref, never stale ─
                     const resolved = resolveShortcut(
