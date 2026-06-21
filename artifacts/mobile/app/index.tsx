@@ -1017,9 +1017,8 @@ function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useCol
       gap: 8,
     },
     logoImg: {
-      width: 32,
-      height: 32,
-      borderRadius: 6,
+      width: 44,
+      height: 37,
     },
     appTitle: {
       fontSize: 20,

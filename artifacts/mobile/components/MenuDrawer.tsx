@@ -16,12 +16,15 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 const PHOTO_KEY = "typetalk_profile_photo";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const AppLogo = require("../assets/images/logo.png") as number;
 const { width: SCREEN_W } = Dimensions.get("window");
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 320);
 
@@ -128,6 +131,13 @@ export default function MenuDrawer({ visible, onClose, onSwitchPanel }: Props) {
 
       {/* Drawer */}
       <Animated.View style={[s.drawer, { transform: [{ translateX: slideX }] }]}>
+        {/* App branding */}
+        <View style={s.brandRow}>
+          <Image source={AppLogo} style={s.brandLogo} resizeMode="contain" />
+        </View>
+
+        <View style={s.divider} />
+
         {/* Profile section */}
         <View style={s.profileSection}>
           <TouchableOpacity style={s.avatarWrap} onPress={handlePickPhoto} activeOpacity={0.8}>
@@ -196,7 +206,9 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, drawer
       backgroundColor: colors.background, paddingTop: topPad,
       borderRightWidth: 1, borderRightColor: colors.border,
     },
-    profileSection: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 20 },
+    brandRow: { alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    brandLogo: { width: 150, height: 125 },
+    profileSection: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 16 },
     avatarWrap: { position: "relative" },
     avatarImg: { width: 60, height: 60, borderRadius: 30 },
     avatarPlaceholder: { width: 60, height: 60, borderRadius: 30, backgroundColor: `${colors.primary}30`, alignItems: "center", justifyContent: "center" },

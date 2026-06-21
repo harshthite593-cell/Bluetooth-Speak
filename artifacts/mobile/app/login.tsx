@@ -80,7 +80,6 @@ export default function LoginScreen() {
         {/* Logo */}
         <View style={s.logoWrap}>
           <Image source={require("../assets/images/logo.png")} style={s.logo} resizeMode="contain" />
-          <Text style={s.appName}>Type Talk</Text>
           <Text style={s.tagline}>Your voice, amplified</Text>
         </View>
 
@@ -172,7 +171,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, bottom
     root: { flex: 1, backgroundColor: colors.background },
     scroll: { flexGrow: 1, paddingTop: topPad + 16, paddingBottom: bottomPad + 24, paddingHorizontal: 20, justifyContent: "center" },
     logoWrap: { alignItems: "center", marginBottom: 28 },
-    logo: { width: 64, height: 64, marginBottom: 10 },
+    logo: { width: 160, height: 134, marginBottom: 6 },
     appName: { fontSize: 26, fontWeight: "700", color: colors.foreground, letterSpacing: -0.5 },
     tagline: { fontSize: 13, color: colors.mutedForeground, marginTop: 3 },
     card: { backgroundColor: colors.card, borderRadius: 20, padding: 22, borderWidth: 1, borderColor: colors.border },
