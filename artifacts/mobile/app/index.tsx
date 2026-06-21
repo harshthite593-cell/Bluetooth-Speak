@@ -374,6 +374,13 @@ export default function TTSScreen() {
           <Text style={s.appTitle}>Type Talk</Text>
         </TouchableOpacity>
         <View style={s.headerRight}>
+          {/* Friends button */}
+          <TouchableOpacity
+            style={s.headerBtn}
+            onPress={() => router.push("/friends")}
+          >
+            <Feather name="users" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
           {/* Analytics button (ADDITIVE) */}
           <TouchableOpacity
             style={s.headerBtn}

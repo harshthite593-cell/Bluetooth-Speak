@@ -21,21 +21,26 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { user, loading } = useAuth();
+  const { user, isGuest, profile, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
+    const isLoggedIn = !!user || isGuest;
+    if (!isLoggedIn) {
       router.replace("/login");
+    } else if (!profile) {
+      router.replace("/profile-setup");
     }
-  }, [user, loading]);
+  }, [user, isGuest, profile, loading]);
 
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
+      <Stack.Screen name="profile-setup" options={{ headerShown: false, animation: "slide_from_bottom" }} />
       <Stack.Screen name="saved-phrases" options={{ headerShown: false }} />
       <Stack.Screen name="analytics" options={{ headerShown: false }} />
+      <Stack.Screen name="friends" options={{ headerShown: false }} />
       <Stack.Screen name="emergency" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="emergency-contacts" options={{ headerShown: false }} />
     </Stack>
