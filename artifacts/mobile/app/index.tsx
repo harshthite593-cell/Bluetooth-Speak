@@ -4,6 +4,7 @@ import * as Speech from "expo-speech";
 import { router, useFocusEffect } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import MenuDrawer from "@/components/MenuDrawer";
 import {
   ActivityIndicator,
   FlatList,
@@ -74,10 +75,11 @@ type Panel = "main" | "settings" | "history";
 
 export default function TTSScreen() {
   const colors = useColors();
-  const { logout } = useAuth();
+  useAuth(); // keep AuthContext active
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
+  const [menuOpen, setMenuOpen] = useState(false);
   const [text, setText] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activePanel, setActivePanel] = useState<Panel>("main");
@@ -374,74 +376,29 @@ export default function TTSScreen() {
           <Text style={s.appTitle}>Type Talk</Text>
         </TouchableOpacity>
         <View style={s.headerRight}>
-          {/* Friends button */}
-          <TouchableOpacity
-            style={s.headerBtn}
-            onPress={() => router.push("/friends")}
-          >
-            <Feather name="users" size={20} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          {/* Analytics button (ADDITIVE) */}
-          <TouchableOpacity
-            style={s.headerBtn}
-            onPress={() => router.push("/analytics")}
-          >
-            <Feather name="bar-chart-2" size={20} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          {/* Emergency button (ADDITIVE) */}
+          {/* Emergency — always visible */}
           <TouchableOpacity
             style={s.headerBtn}
             onPress={() => router.push("/emergency")}
           >
             <Feather name="alert-triangle" size={20} color="#FF6B6B" />
           </TouchableOpacity>
-          {/* My Phrases button (ADDITIVE) */}
+          {/* Hamburger menu */}
           <TouchableOpacity
             style={s.headerBtn}
-            onPress={() => router.push("/saved-phrases")}
+            onPress={() => setMenuOpen(true)}
           >
-            <Feather name="bookmark" size={20} color="#4ECDC4" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={s.headerBtn}
-            onPress={() => switchPanel("history")}
-          >
-            <Feather
-              name="clock"
-              size={20}
-              color={
-                activePanel === "history"
-                  ? colors.primary
-                  : colors.mutedForeground
-              }
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={s.headerBtn}
-            onPress={() => switchPanel("settings")}
-          >
-            <Feather
-              name="sliders"
-              size={20}
-              color={
-                activePanel === "settings"
-                  ? colors.primary
-                  : colors.mutedForeground
-              }
-            />
-          </TouchableOpacity>
-          {/* Logout button */}
-          <TouchableOpacity
-            style={s.headerBtn}
-            onPress={async () => {
-              await logout();
-              router.replace("/login");
-            }}
-          >
-            <Feather name="log-out" size={20} color={colors.mutedForeground} />
+            <Feather name="menu" size={22} color={colors.foreground} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── Menu Drawer ── */}
+      <MenuDrawer
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onSwitchPanel={(panel) => { setMenuOpen(false); setTimeout(() => setActivePanel(panel), 250); }}
+      />
 
       {/* ── Panels ── */}
       {activePanel === "history" ? (

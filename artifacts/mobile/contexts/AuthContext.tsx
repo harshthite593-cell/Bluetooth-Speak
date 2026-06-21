@@ -5,6 +5,7 @@ const AUTH_TOKEN_KEY = "typetalk_auth_token";
 const AUTH_USER_KEY = "typetalk_auth_user";
 const GUEST_KEY = "typetalk_is_guest";
 const PROFILE_KEY = "typetalk_profile";
+const PHOTO_KEY = "typetalk_profile_photo";
 
 // Build the API base URL. EXPO_PUBLIC_DOMAIN is injected by the dev script.
 const domain = process.env["EXPO_PUBLIC_DOMAIN"];
