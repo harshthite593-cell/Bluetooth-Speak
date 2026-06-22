@@ -33,8 +33,9 @@ args = "PORT=18115 pnpm --filter @workspace/mobile run dev"
 waitForPort = 18115
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
+integrations = ["javascript_gemini_ai_integrations:2.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -98,3 +99,6 @@ EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "404119236252"
 EXPO_PUBLIC_FIREBASE_APP_ID = "1:404119236252:web:56ceccd5857f72cf760759"
 EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID = "G-76HTV5325T"
 EXPO_PUBLIC_FIREBASE_RTDB_URL = "https://type-talk-18-default-rtdb.firebaseio.com"
+
+[nix]
+channel = "stable-25_05"
