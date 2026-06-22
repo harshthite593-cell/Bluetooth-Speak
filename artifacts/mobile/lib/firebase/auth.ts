@@ -1,5 +1,6 @@
 import {
-  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
@@ -11,10 +12,18 @@ import {
   RecaptchaVerifier,
   ConfirmationResult,
   User,
+  getAuth,
 } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { firebaseApp } from "./config";
 
-export const firebaseAuth = getAuth(firebaseApp);
+export const firebaseAuth =
+  Platform.OS === "web"
+    ? getAuth(firebaseApp)
+    : initializeAuth(firebaseApp, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
 
 let pendingConfirmation: ConfirmationResult | null = null;
 let recaptchaVerifier: RecaptchaVerifier | null = null;
