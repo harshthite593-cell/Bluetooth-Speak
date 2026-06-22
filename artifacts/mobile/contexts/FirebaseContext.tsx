@@ -4,6 +4,10 @@ import {
   firebaseRegister,
   firebaseLogin,
   firebaseLogout,
+  firebaseGoogleSignIn,
+  firebaseSendOTP,
+  firebaseConfirmOTP,
+  firebaseCancelOTP,
   onFirebaseAuthStateChanged,
   savePhraseToCloud,
   getPhrasesFromCloud,
@@ -20,14 +24,18 @@ interface FirebaseContextValue {
   firebaseLoading: boolean;
   cloudPhrases: CloudPhrase[];
   cloudError: string | null;
+  isConnected: boolean;
   fbRegister: (name: string, email: string, password: string) => Promise<string | null>;
   fbLogin: (email: string, password: string) => Promise<string | null>;
+  fbGoogleSignIn: () => Promise<string | null>;
+  fbSendOTP: (phone: string, containerId: string) => Promise<string | null>;
+  fbConfirmOTP: (code: string) => Promise<{ user: User | null; error: string | null }>;
+  fbCancelOTP: () => void;
   fbLogout: () => Promise<void>;
   fbSavePhrase: (phrase: Omit<CloudPhrase, "id" | "userId">) => Promise<string | null>;
   fbDeletePhrase: (id: string) => Promise<string | null>;
   fbSaveProfile: (profile: UserProfile) => Promise<string | null>;
   fbGetProfile: () => Promise<UserProfile | null>;
-  isConnected: boolean;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -37,22 +45,17 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [firebaseLoading, setFirebaseLoading] = useState(true);
   const [cloudPhrases, setCloudPhrases] = useState<CloudPhrase[]>([]);
   const [cloudError, setCloudError] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     const unsub = onFirebaseAuthStateChanged((user) => {
       setFirebaseUser(user);
       setFirebaseLoading(false);
-      setIsConnected(!!user);
     });
     return unsub;
   }, []);
 
   useEffect(() => {
-    if (!firebaseUser) {
-      setCloudPhrases([]);
-      return;
-    }
+    if (!firebaseUser) { setCloudPhrases([]); return; }
     const unsub = subscribeToUserPhrases(firebaseUser.uid, (phrases) => {
       setCloudPhrases(phrases);
       setCloudError(null);
@@ -68,6 +71,24 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const fbLogin = useCallback(async (email: string, password: string) => {
     const { error } = await firebaseLogin(email, password);
     return error;
+  }, []);
+
+  const fbGoogleSignIn = useCallback(async () => {
+    const { error } = await firebaseGoogleSignIn();
+    return error;
+  }, []);
+
+  const fbSendOTP = useCallback(async (phone: string, containerId: string) => {
+    const { error } = await firebaseSendOTP(phone, containerId);
+    return error;
+  }, []);
+
+  const fbConfirmOTP = useCallback(async (code: string) => {
+    return firebaseConfirmOTP(code);
+  }, []);
+
+  const fbCancelOTP = useCallback(() => {
+    firebaseCancelOTP();
   }, []);
 
   const fbLogout = useCallback(async () => {
@@ -104,14 +125,18 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       firebaseLoading,
       cloudPhrases,
       cloudError,
+      isConnected: !!firebaseUser,
       fbRegister,
       fbLogin,
+      fbGoogleSignIn,
+      fbSendOTP,
+      fbConfirmOTP,
+      fbCancelOTP,
       fbLogout,
       fbSavePhrase,
       fbDeletePhrase,
       fbSaveProfile,
       fbGetProfile,
-      isConnected,
     }}>
       {children}
     </FirebaseContext.Provider>

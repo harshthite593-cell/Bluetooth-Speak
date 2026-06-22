@@ -15,7 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { FirebaseProvider } from "@/contexts/FirebaseContext";
+import { FirebaseProvider, useFirebase } from "@/contexts/FirebaseContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,16 +23,17 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { user, isGuest, profileSeen, loading } = useAuth();
+  const { firebaseUser, firebaseLoading } = useFirebase();
 
   useEffect(() => {
-    if (loading) return;
-    const isLoggedIn = !!user || isGuest;
+    if (loading || firebaseLoading) return;
+    const isLoggedIn = !!user || isGuest || !!firebaseUser;
     if (!isLoggedIn) {
       router.replace("/login");
-    } else if (!profileSeen) {
+    } else if (!profileSeen && !firebaseUser) {
       router.replace("/profile-setup");
     }
-  }, [user, isGuest, profileSeen, loading]);
+  }, [user, isGuest, profileSeen, loading, firebaseUser, firebaseLoading]);
 
   return (
     <Stack>
