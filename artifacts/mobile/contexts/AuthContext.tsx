@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 
 const AUTH_TOKEN_KEY = "typetalk_auth_token";
 const AUTH_USER_KEY = "typetalk_auth_user";
@@ -8,11 +9,13 @@ const PROFILE_KEY = "typetalk_profile";
 const PHOTO_KEY = "typetalk_profile_photo";
 const PROFILE_SEEN_KEY = "typetalk_profile_seen";
 
-// Build the API base URL. EXPO_PUBLIC_DOMAIN is injected by the dev script.
-const domain = process.env["EXPO_PUBLIC_DOMAIN"];
-const API_BASE = domain
-  ? `https://${domain}/api`
-  : (process.env["EXPO_PUBLIC_API_BASE_URL"] ?? "http://localhost:8080/api");
+const _domain = process.env["EXPO_PUBLIC_DOMAIN"];
+const API_BASE: string =
+  Platform.OS === "web"
+    ? "/api"
+    : _domain
+      ? `https://${_domain}/api`
+      : (process.env["EXPO_PUBLIC_API_BASE_URL"] ?? "http://localhost:8080/api");
 
 export { API_BASE };
 
