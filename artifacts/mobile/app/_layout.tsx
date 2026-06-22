@@ -22,22 +22,11 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { user, isGuest, profileSeen, loading } = useAuth();
-  const { firebaseUser, firebaseLoading, role, roleLoading } = useFirebase();
+  const { profileSeen, loading } = useAuth();
+  const { firebaseLoading, role, roleLoading } = useFirebase();
 
   useEffect(() => {
-    if (loading || firebaseLoading || (firebaseUser && roleLoading)) return;
-
-    const isLoggedIn = !!user || isGuest || !!firebaseUser;
-    if (!isLoggedIn) {
-      router.replace("/login");
-      return;
-    }
-
-    if (isGuest || !firebaseUser) {
-      if (!profileSeen) router.replace("/profile-setup");
-      return;
-    }
+    if (loading || firebaseLoading || roleLoading) return;
 
     if (!role) {
       router.replace("/role-select");
@@ -52,12 +41,11 @@ function RootLayoutNav() {
     if (!profileSeen) {
       router.replace("/profile-setup");
     }
-  }, [user, isGuest, profileSeen, loading, firebaseUser, firebaseLoading, role, roleLoading]);
+  }, [profileSeen, loading, firebaseLoading, role, roleLoading]);
 
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
       <Stack.Screen name="role-select" options={{ headerShown: false, animation: "fade" }} />
       <Stack.Screen name="guardian" options={{ headerShown: false }} />
       <Stack.Screen name="profile-setup" options={{ headerShown: false, animation: "slide_from_bottom" }} />

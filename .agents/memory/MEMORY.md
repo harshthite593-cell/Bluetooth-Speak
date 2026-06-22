@@ -1,0 +1,1 @@
+- [No-auth architecture](no-auth-architecture.md) — auth removed; Firebase Anonymous Auth auto-signs in; PostgreSQL stores phrases; RTDB handles guardian real-time.

@@ -1,13 +1,8 @@
 export { firebaseApp } from "./config";
 export {
   firebaseAuth,
-  firebaseRegister,
-  firebaseLogin,
+  firebaseSignInAnonymously,
   firebaseLogout,
-  firebaseGoogleSignIn,
-  firebaseSendOTP,
-  firebaseConfirmOTP,
-  firebaseCancelOTP,
   onFirebaseAuthStateChanged,
 } from "./auth";
 export {
