@@ -30,3 +30,17 @@ export {
   rtdbSaveUserProfile,
 } from "./realtimeDb";
 export type { RtdbPhrase, UserPresence } from "./realtimeDb";
+export {
+  rtdbSetRole,
+  rtdbGetRole,
+  rtdbRegisterUserCode,
+  rtdbGetUserCode,
+  rtdbLinkGuardianToUser,
+  rtdbUnlinkGuardian,
+  rtdbSubscribeToLinkedUsers,
+  rtdbTriggerEmergency,
+  rtdbResolveEmergency,
+  rtdbGuardianRespond,
+  rtdbSubscribeToMyEmergency,
+} from "./guardian";
+export type { EmergencyEvent, LinkedUser } from "./guardian";

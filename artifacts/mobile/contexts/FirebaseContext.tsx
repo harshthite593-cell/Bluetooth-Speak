@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import {
@@ -17,9 +18,17 @@ import {
   rtdbSavePhrase,
   rtdbSetUserPresence,
   rtdbSaveUserProfile,
+  rtdbSetRole,
+  rtdbGetRole,
+  rtdbRegisterUserCode,
+  rtdbGetUserCode,
+  rtdbTriggerEmergency,
+  rtdbResolveEmergency,
 } from "@/lib/firebase";
-import type { CloudPhrase, RtdbPhrase } from "@/lib/firebase";
+import type { CloudPhrase, RtdbPhrase, EmergencyEvent } from "@/lib/firebase";
 import type { UserProfile } from "@/contexts/AuthContext";
+
+const ROLE_KEY = "typetalk_role";
 
 interface FirebaseContextValue {
   firebaseUser: User | null;
@@ -27,6 +36,9 @@ interface FirebaseContextValue {
   cloudPhrases: CloudPhrase[];
   cloudError: string | null;
   isConnected: boolean;
+  role: "user" | "guardian" | null;
+  roleLoading: boolean;
+  guardianCode: string | null;
   fbRegister: (name: string, email: string, password: string) => Promise<string | null>;
   fbLogin: (email: string, password: string) => Promise<string | null>;
   fbGoogleSignIn: () => Promise<string | null>;
@@ -39,6 +51,9 @@ interface FirebaseContextValue {
   fbSaveProfile: (profile: UserProfile) => Promise<string | null>;
   fbGetProfile: () => Promise<UserProfile | null>;
   rtdbPushPhrase: (phrase: Omit<RtdbPhrase, "id">) => Promise<void>;
+  setRole: (role: "user" | "guardian") => Promise<void>;
+  triggerEmergency: (message: string, lat?: number | null, lng?: number | null) => Promise<void>;
+  resolveEmergency: () => Promise<void>;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -48,17 +63,44 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [firebaseLoading, setFirebaseLoading] = useState(true);
   const [cloudPhrases, setCloudPhrases] = useState<CloudPhrase[]>([]);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  const [role, setRoleState] = useState<"user" | "guardian" | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+  const [guardianCode, setGuardianCode] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = onFirebaseAuthStateChanged((user) => {
+    const unsub = onFirebaseAuthStateChanged(async (user) => {
       setFirebaseUser(user);
       setFirebaseLoading(false);
+
       if (user) {
         rtdbSetUserPresence(
           user.uid,
           user.displayName ?? user.email ?? "Type Talk User",
           user.photoURL ?? undefined
         ).catch(() => {});
+
+        const [savedRole, remoteRole, code] = await Promise.all([
+          AsyncStorage.getItem(ROLE_KEY),
+          rtdbGetRole(user.uid),
+          rtdbGetUserCode(user.uid),
+        ]);
+
+        const resolvedRole = (savedRole ?? remoteRole) as "user" | "guardian" | null;
+        setRoleState(resolvedRole);
+        setRoleLoading(false);
+
+        if (code) {
+          setGuardianCode(code);
+        } else {
+          const newCode = await rtdbRegisterUserCode(user.uid);
+          setGuardianCode(newCode);
+        }
+
+        if (resolvedRole) {
+          await rtdbSetRole(user.uid, resolvedRole);
+        }
+      } else {
+        setRoleLoading(false);
       }
     });
     return unsub;
@@ -71,6 +113,14 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       setCloudError(null);
     });
     return unsub;
+  }, [firebaseUser]);
+
+  const setRole = useCallback(async (r: "user" | "guardian") => {
+    setRoleState(r);
+    await AsyncStorage.setItem(ROLE_KEY, r);
+    if (firebaseUser) {
+      await rtdbSetRole(firebaseUser.uid, r).catch(() => {});
+    }
   }, [firebaseUser]);
 
   const fbRegister = useCallback(async (name: string, email: string, password: string) => {
@@ -98,8 +148,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fbCancelOTP = useCallback(() => { firebaseCancelOTP(); }, []);
-
-  const fbLogout = useCallback(async () => { await firebaseLogout(); }, []);
+  const fbLogout = useCallback(async () => {
+    await firebaseLogout();
+    await AsyncStorage.removeItem(ROLE_KEY);
+    setRoleState(null);
+  }, []);
 
   const fbSavePhrase = useCallback(async (phrase: Omit<CloudPhrase, "id" | "userId">) => {
     if (!firebaseUser) return null;
@@ -118,12 +171,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseUser) return null;
     const err = await saveUserProfileToCloud(firebaseUser.uid, profile);
     if (!err) {
-      rtdbSaveUserProfile(firebaseUser.uid, {
-        name: profile.name,
-        age: profile.age,
-        gender: profile.gender,
-        bio: profile.bio,
-      }).catch(() => {});
+      rtdbSaveUserProfile(firebaseUser.uid, { name: profile.name, age: profile.age, gender: profile.gender, bio: profile.bio }).catch(() => {});
     }
     return err;
   }, [firebaseUser]);
@@ -139,25 +187,27 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     rtdbSavePhrase(firebaseUser.uid, phrase).catch(() => {});
   }, [firebaseUser]);
 
+  const triggerEmergency = useCallback(async (message: string, lat?: number | null, lng?: number | null) => {
+    if (!firebaseUser) return;
+    await rtdbTriggerEmergency(firebaseUser.uid, message, lat, lng);
+  }, [firebaseUser]);
+
+  const resolveEmergency = useCallback(async () => {
+    if (!firebaseUser) return;
+    await rtdbResolveEmergency(firebaseUser.uid);
+  }, [firebaseUser]);
+
   return (
     <FirebaseContext.Provider value={{
-      firebaseUser,
-      firebaseLoading,
-      cloudPhrases,
-      cloudError,
+      firebaseUser, firebaseLoading,
+      cloudPhrases, cloudError,
       isConnected: !!firebaseUser,
-      fbRegister,
-      fbLogin,
-      fbGoogleSignIn,
-      fbSendOTP,
-      fbConfirmOTP,
-      fbCancelOTP,
-      fbLogout,
-      fbSavePhrase,
-      fbDeletePhrase,
-      fbSaveProfile,
-      fbGetProfile,
-      rtdbPushPhrase,
+      role, roleLoading, guardianCode,
+      fbRegister, fbLogin, fbGoogleSignIn,
+      fbSendOTP, fbConfirmOTP, fbCancelOTP, fbLogout,
+      fbSavePhrase, fbDeletePhrase, fbSaveProfile, fbGetProfile,
+      rtdbPushPhrase, setRole,
+      triggerEmergency, resolveEmergency,
     }}>
       {children}
     </FirebaseContext.Provider>
