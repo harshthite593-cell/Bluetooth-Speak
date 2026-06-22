@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "expo-sms": "^56.0.3",
-    "expo-speech": "^56.0.3"
+    "expo-speech": "^56.0.3",
+    "firebase": "^12.15.0"
   }
 }
