@@ -10,13 +10,15 @@ import {
   firebaseCancelOTP,
   onFirebaseAuthStateChanged,
   savePhraseToCloud,
-  getPhrasesFromCloud,
   deletePhraseFromCloud,
   subscribeToUserPhrases,
   saveUserProfileToCloud,
   getUserProfileFromCloud,
+  rtdbSavePhrase,
+  rtdbSetUserPresence,
+  rtdbSaveUserProfile,
 } from "@/lib/firebase";
-import type { CloudPhrase } from "@/lib/firebase";
+import type { CloudPhrase, RtdbPhrase } from "@/lib/firebase";
 import type { UserProfile } from "@/contexts/AuthContext";
 
 interface FirebaseContextValue {
@@ -36,6 +38,7 @@ interface FirebaseContextValue {
   fbDeletePhrase: (id: string) => Promise<string | null>;
   fbSaveProfile: (profile: UserProfile) => Promise<string | null>;
   fbGetProfile: () => Promise<UserProfile | null>;
+  rtdbPushPhrase: (phrase: Omit<RtdbPhrase, "id">) => Promise<void>;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -50,6 +53,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     const unsub = onFirebaseAuthStateChanged((user) => {
       setFirebaseUser(user);
       setFirebaseLoading(false);
+      if (user) {
+        rtdbSetUserPresence(
+          user.uid,
+          user.displayName ?? user.email ?? "Type Talk User",
+          user.photoURL ?? undefined
+        ).catch(() => {});
+      }
     });
     return unsub;
   }, []);
@@ -87,16 +97,12 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     return firebaseConfirmOTP(code);
   }, []);
 
-  const fbCancelOTP = useCallback(() => {
-    firebaseCancelOTP();
-  }, []);
+  const fbCancelOTP = useCallback(() => { firebaseCancelOTP(); }, []);
 
-  const fbLogout = useCallback(async () => {
-    await firebaseLogout();
-  }, []);
+  const fbLogout = useCallback(async () => { await firebaseLogout(); }, []);
 
   const fbSavePhrase = useCallback(async (phrase: Omit<CloudPhrase, "id" | "userId">) => {
-    if (!firebaseUser) return "Not signed in to cloud.";
+    if (!firebaseUser) return null;
     const { error } = await savePhraseToCloud(firebaseUser.uid, phrase);
     if (error) setCloudError(error);
     return error;
@@ -109,14 +115,28 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fbSaveProfile = useCallback(async (profile: UserProfile) => {
-    if (!firebaseUser) return "Not signed in to cloud.";
-    return saveUserProfileToCloud(firebaseUser.uid, profile);
+    if (!firebaseUser) return null;
+    const err = await saveUserProfileToCloud(firebaseUser.uid, profile);
+    if (!err) {
+      rtdbSaveUserProfile(firebaseUser.uid, {
+        name: profile.name,
+        age: profile.age,
+        gender: profile.gender,
+        bio: profile.bio,
+      }).catch(() => {});
+    }
+    return err;
   }, [firebaseUser]);
 
   const fbGetProfile = useCallback(async (): Promise<UserProfile | null> => {
     if (!firebaseUser) return null;
     const { profile } = await getUserProfileFromCloud(firebaseUser.uid);
     return profile;
+  }, [firebaseUser]);
+
+  const rtdbPushPhrase = useCallback(async (phrase: Omit<RtdbPhrase, "id">) => {
+    if (!firebaseUser) return;
+    rtdbSavePhrase(firebaseUser.uid, phrase).catch(() => {});
   }, [firebaseUser]);
 
   return (
@@ -137,6 +157,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       fbDeletePhrase,
       fbSaveProfile,
       fbGetProfile,
+      rtdbPushPhrase,
     }}>
       {children}
     </FirebaseContext.Provider>
