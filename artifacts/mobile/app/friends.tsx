@@ -15,7 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { API_BASE, useAuth } from "@/contexts/AuthContext";
-import { useFirebase } from "@/contexts/FirebaseContext";
 import { useColors } from "@/hooks/useColors";
 
 interface UserCard {
@@ -32,8 +31,7 @@ type Tab = "discover" | "friends";
 export default function FriendsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { firebaseUser } = useFirebase();
-  const { profile } = useAuth();
+  const { token, isGuest, profile } = useAuth();
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -51,20 +49,20 @@ export default function FriendsScreen() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const headers = { "Content-Type": "application/json", "X-User-Id": firebaseUser?.uid ?? "" };
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${token ?? ""}` };
 
   const loadDiscover = useCallback(async () => {
-    if (!firebaseUser) return;
+    if (!token) return;
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/users/browse`, { headers });
       if (res.ok) setUsers(await res.json() as UserCard[]);
     } catch { showToast("Could not load users"); }
     setLoading(false);
-  }, [firebaseUser]);
+  }, [token]);
 
   const loadFriends = useCallback(async () => {
-    if (!firebaseUser) return;
+    if (!token) return;
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/friends`, { headers });
@@ -75,7 +73,7 @@ export default function FriendsScreen() {
       }
     } catch { showToast("Could not load friends"); }
     setLoading(false);
-  }, [firebaseUser]);
+  }, [token]);
 
   useEffect(() => {
     if (tab === "discover") loadDiscover();
@@ -83,6 +81,7 @@ export default function FriendsScreen() {
   }, [tab, loadDiscover, loadFriends]);
 
   const sendRequest = async (userId: string) => {
+    if (!token) return;
     setActionLoading(userId);
     try {
       const res = await fetch(`${API_BASE}/friends/request`, {
@@ -101,6 +100,7 @@ export default function FriendsScreen() {
   };
 
   const acceptRequest = async (userId: string) => {
+    if (!token) return;
     setActionLoading(userId);
     try {
       const res = await fetch(`${API_BASE}/friends/${userId}/accept`, { method: "PATCH", headers });
@@ -180,7 +180,20 @@ export default function FriendsScreen() {
         <View style={s.backBtn} />
       </View>
 
-      <>
+      {/* Guest wall */}
+      {isGuest && (
+        <View style={s.guestWall}>
+          <Feather name="users" size={40} color={colors.mutedForeground} />
+          <Text style={s.guestTitle}>Create an account to make friends</Text>
+          <Text style={s.guestSub}>The friends feature requires a free account so others can find you.</Text>
+          <TouchableOpacity style={s.guestBtn} onPress={() => router.replace("/login")}>
+            <Text style={s.guestBtnText}>Sign up — it's free</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!isGuest && (
+        <>
           {/* Profile preview */}
           {profile && (
             <View style={s.myProfile}>
@@ -219,7 +232,8 @@ export default function FriendsScreen() {
               ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
             />
           )}
-      </>
+        </>
+      )}
 
       {toast && (
         <View style={s.toast}>

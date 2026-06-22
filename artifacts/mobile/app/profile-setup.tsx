@@ -24,16 +24,16 @@ const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
 export default function ProfileSetupScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { profile, updateProfile, skipProfile } = useAuth();
+  const { user, isGuest, updateProfile, skipProfile } = useAuth();
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const [name, setName] = useState(profile?.name ?? "");
-  const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
-  const [gender, setGender] = useState(profile?.gender ?? "");
-  const [birthDate, setBirthDate] = useState(profile?.birthDate ?? "");
-  const [bio, setBio] = useState(profile?.bio ?? "");
+  const [name, setName] = useState(user?.name ?? "");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +42,7 @@ export default function ProfileSetupScreen() {
     const finalName = name.trim();
     const ageNum = parseInt(age, 10);
 
-    if (!finalName) { setError("Please enter your name"); return; }
+    if (isGuest && !finalName) { setError("Please enter your name"); return; }
     if (!age || isNaN(ageNum) || ageNum < 1 || ageNum > 120) { setError("Please enter a valid age"); return; }
     if (!gender) { setError("Please select your gender"); return; }
     if (!birthDate.match(/^\d{4}-\d{2}-\d{2}$/)) { setError("Please enter birth date as YYYY-MM-DD"); return; }
@@ -89,16 +89,18 @@ export default function ProfileSetupScreen() {
         </View>
 
         <View style={s.card}>
-          {/* Name */}
-          <View style={s.fieldWrap}>
-            <Text style={s.label}>Your Name</Text>
-            <View style={s.inputRow}>
-              <Feather name="user" size={15} color={colors.mutedForeground} style={s.icon} />
-              <TextInput style={s.input} value={name} onChangeText={setName}
-                placeholder="What should we call you?" placeholderTextColor={colors.mutedForeground}
-                autoCapitalize="words" returnKeyType="next" />
+          {/* Name (only for guests since auth users already have a name) */}
+          {isGuest && (
+            <View style={s.fieldWrap}>
+              <Text style={s.label}>Your Name</Text>
+              <View style={s.inputRow}>
+                <Feather name="user" size={15} color={colors.mutedForeground} style={s.icon} />
+                <TextInput style={s.input} value={name} onChangeText={setName}
+                  placeholder="What should we call you?" placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="words" returnKeyType="next" />
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Age */}
           <View style={s.fieldWrap}>

@@ -1,9 +1,16 @@
 export { firebaseApp } from "./config";
 export {
   firebaseAuth,
-  firebaseSignInAnonymously,
+  firebaseRegister,
+  firebaseLogin,
   firebaseLogout,
+  firebaseGoogleSignIn,
+  firebaseSendOTP,
+  firebaseConfirmOTP,
+  firebaseCancelOTP,
+  firebaseSignInAnonymously,
   onFirebaseAuthStateChanged,
+  firebaseErrorMessage,
 } from "./auth";
 export {
   db,

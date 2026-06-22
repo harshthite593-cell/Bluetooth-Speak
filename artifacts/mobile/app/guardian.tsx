@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -157,11 +156,11 @@ export default function GuardianScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Switch role?", "You'll go back to role selection.", [
+    Alert.alert("Sign out?", "You'll be taken back to the login screen.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Switch", style: "destructive", onPress: async () => {
-        await AsyncStorage.removeItem("typetalk_role");
-        router.replace("/role-select");
+      { text: "Sign out", style: "destructive", onPress: async () => {
+        await fbLogout();
+        router.replace("/login");
       }},
     ]);
   };
