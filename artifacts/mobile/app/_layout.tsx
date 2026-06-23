@@ -15,7 +15,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { FirebaseProvider, useFirebase } from "@/contexts/FirebaseContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,43 +22,21 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { user, isGuest, profileSeen, loading } = useAuth();
-  const { firebaseUser, firebaseLoading, role, roleLoading } = useFirebase();
 
   useEffect(() => {
-    if (loading || firebaseLoading || (firebaseUser && roleLoading)) return;
-
-    const isLoggedIn = !!user || isGuest || !!firebaseUser;
+    if (loading) return;
+    const isLoggedIn = !!user || isGuest;
     if (!isLoggedIn) {
       router.replace("/login");
-      return;
-    }
-
-    if (isGuest || !firebaseUser) {
-      if (!profileSeen) router.replace("/profile-setup");
-      return;
-    }
-
-    if (!role) {
-      router.replace("/role-select");
-      return;
-    }
-
-    if (role === "guardian") {
-      router.replace("/guardian");
-      return;
-    }
-
-    if (!profileSeen) {
+    } else if (!profileSeen) {
       router.replace("/profile-setup");
     }
-  }, [user, isGuest, profileSeen, loading, firebaseUser, firebaseLoading, role, roleLoading]);
+  }, [user, isGuest, profileSeen, loading]);
 
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false, animation: "fade" }} />
-      <Stack.Screen name="role-select" options={{ headerShown: false, animation: "fade" }} />
-      <Stack.Screen name="guardian" options={{ headerShown: false }} />
       <Stack.Screen name="profile-setup" options={{ headerShown: false, animation: "slide_from_bottom" }} />
       <Stack.Screen name="saved-phrases" options={{ headerShown: false }} />
       <Stack.Screen name="analytics" options={{ headerShown: false }} />
@@ -91,15 +68,13 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <FirebaseProvider>
-            <AuthProvider>
-              <GestureHandlerRootView>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </AuthProvider>
-          </FirebaseProvider>
+          <AuthProvider>
+            <GestureHandlerRootView>
+              <KeyboardProvider>
+                <RootLayoutNav />
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

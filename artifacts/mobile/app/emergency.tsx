@@ -25,7 +25,6 @@ import {
   getActiveContacts,
   logEmergencyEvent,
 } from "@/utils/emergency";
-import { useFirebase } from "@/contexts/FirebaseContext";
 
 const CORAL = "#FF6B6B";
 const DARK_RED = "#C53030";
@@ -33,7 +32,6 @@ const WHITE = "#FFFFFF";
 
 export default function EmergencyScreen() {
   const insets = useSafeAreaInsets();
-  const { triggerEmergency, resolveEmergency } = useFirebase();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -74,14 +72,11 @@ export default function EmergencyScreen() {
       resolved: false,
     });
 
-    // Fire Firebase RTDB emergency alert to all linked guardians
-    triggerEmergency("Emergency! I need help immediately.", null, null).catch(() => {});
-
     return () => {
       pulse.stop();
       Speech.stop();
     };
-  }, [triggerEmergency]);
+  }, []);
 
   const showStatus = (msg: string) => {
     setStatusMsg(msg);
@@ -155,9 +150,6 @@ export default function EmergencyScreen() {
         `Time: ${timestamp}\n` +
         `Please respond immediately.`;
 
-      // Update Firebase emergency with precise location
-      triggerEmergency(phrase, lat, lng).catch(() => {});
-
       const smsAvailable = await SMS.isAvailableAsync();
       if (smsAvailable) {
         const phones = contacts.map((c) => c.phone);
@@ -197,7 +189,6 @@ export default function EmergencyScreen() {
             contactsNotified: "",
             resolved: true,
           });
-          resolveEmergency().catch(() => {});
           router.back();
         },
       },

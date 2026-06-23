@@ -26,7 +26,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import WaveformAnimation from "@/components/WaveformAnimation";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFirebase } from "@/contexts/FirebaseContext";
 import { useColors } from "@/hooks/useColors";
 import { insertLog } from "@/utils/analytics";
 import {
@@ -77,7 +76,6 @@ type Panel = "main" | "settings" | "history";
 export default function TTSScreen() {
   const colors = useColors();
   const { profile, updateProfile } = useAuth();
-  const { rtdbPushPhrase } = useFirebase();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
@@ -222,9 +220,6 @@ export default function TTSScreen() {
       // ── Record for prediction model (ADDITIVE) ────────────────
       recordSpokenText(trimmed).then(() => invalidateTrieCache());
 
-      // ── Firebase Realtime Database sync (ADDITIVE) ────────────
-      rtdbPushPhrase({ text: trimmed, timestamp: Date.now(), voiceRate: rate, voicePitch: pitch, language });
-
       Speech.speak(trimmed, {
         rate,
         pitch,
@@ -238,7 +233,7 @@ export default function TTSScreen() {
         onError: () => setIsSpeaking(false),
       });
     },
-    [rate, pitch, language, history, rtdbPushPhrase]
+    [rate, pitch, language, history]
   );
 
   const stopSpeaking = useCallback(() => {
