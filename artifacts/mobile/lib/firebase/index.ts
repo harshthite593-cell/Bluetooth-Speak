@@ -8,9 +8,7 @@ export {
   firebaseSendOTP,
   firebaseConfirmOTP,
   firebaseCancelOTP,
-  firebaseSignInAnonymously,
   onFirebaseAuthStateChanged,
-  firebaseErrorMessage,
 } from "./auth";
 export {
   db,

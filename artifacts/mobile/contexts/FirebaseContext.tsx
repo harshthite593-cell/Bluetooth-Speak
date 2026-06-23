@@ -148,7 +148,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fbCancelOTP = useCallback(() => { firebaseCancelOTP(); }, []);
-
   const fbLogout = useCallback(async () => {
     await firebaseLogout();
     await AsyncStorage.removeItem(ROLE_KEY);

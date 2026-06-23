@@ -156,12 +156,9 @@ export default function GuardianScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Sign out?", "You'll be taken back to the login screen.", [
+    Alert.alert("Log out?", "You'll return to the login screen.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: async () => {
-        await fbLogout();
-        router.replace("/login");
-      }},
+      { text: "Log out", style: "destructive", onPress: () => router.replace("/login") },
     ]);
   };
 

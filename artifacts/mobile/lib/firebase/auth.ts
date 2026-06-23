@@ -1,30 +1,20 @@
 import {
-  initializeAuth,
-  getReactNativePersistence,
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInAnonymously,
+  signInWithPhoneNumber,
   signOut,
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
   RecaptchaVerifier,
-  type ConfirmationResult,
-  type User,
-  getAuth,
-  signInWithPhoneNumber,
+  ConfirmationResult,
+  User,
 } from "firebase/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
 import { firebaseApp } from "./config";
 
-export const firebaseAuth =
-  Platform.OS === "web"
-    ? getAuth(firebaseApp)
-    : initializeAuth(firebaseApp, {
-        persistence: getReactNativePersistence(AsyncStorage),
-      });
+export const firebaseAuth = getAuth(firebaseApp);
 
 let pendingConfirmation: ConfirmationResult | null = null;
 let recaptchaVerifier: RecaptchaVerifier | null = null;
@@ -107,15 +97,6 @@ export async function firebaseConfirmOTP(
 export function firebaseCancelOTP() {
   pendingConfirmation = null;
   if (recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-}
-
-export async function firebaseSignInAnonymously(): Promise<{ user: User | null; error: string | null }> {
-  try {
-    const cred = await signInAnonymously(firebaseAuth);
-    return { user: cred.user, error: null };
-  } catch (e: unknown) {
-    return { user: null, error: "Failed to initialize session." };
-  }
 }
 
 export async function firebaseLogout(): Promise<void> {
